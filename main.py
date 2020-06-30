@@ -7,53 +7,52 @@ def calcOffset (i,j):
     return i - j/2
 
 def calcR (x,y):
-    return np.sqrt(calcOffset(x,w)**2 + calcOffset(y,h)**2)
+    return np.sqrt(calcOffset(x,width)**2 + calcOffset(y,height)**2)
 
 def calcRho (x,y):
-    return np.divide(calcR(x,y),z)
+    return np.divide(calcR(x,y),length)
 
 def calcTheta (x,y):
     return 2 * np.arctan(calcRho(x,y))
 
-def calcA (x,y):
-    return np.arctan2(calcOffset(y,h),calcOffset(x,w))
+def calcLongitude (x,y):
+    return np.arctan2(calcOffset(y,height),calcOffset(x,width))
 
 img = cv.imread("sample.jpg")
-
-img = cv.resize(img, (0,0), fx=0.10, fy=0.10)
 
 if img is None: 
     print("Could not load image")
 
-bwimg = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
+img = cv.normalize(img.astype('float'), None, 0.0, 1.0, cv.NORM_MINMAX)
 
-h, w = bwimg.shape
-z = w
-rads = 2*math.pi/w;
+#img = cv.resize(img, (int(round((img.shape[1]*0.05))),int(round((img.shape[0]*0.05)))))
+width = img.shape[1]
+height = img.shape[0]
+radians = 2*math.pi/width;
+length = width/10
 
-a = np.linspace(1,2,w)
-b = np.linspace(1,2,h)
+x = np.arange(1,width+1)
+y = np.arange(1,height+1)
 
-[pixX, pixY] = np.meshgrid(a,b)
+[a, b] = np.meshgrid(x,y)
+latitude = calcTheta(a,b)
+longitude = calcLongitude(a,b) - math.pi/4
+latitude = np.mod(latitude + math.pi, math.pi) - math.pi/2
+longitude = np.mod(longitude + math.pi*2, math.pi*2) - math.pi
 
-lat = calcTheta(pixX,pixY)
-lon = calcA(pixX,pixY) - math.pi/4
+Xq = width/2.0-(-longitude/radians)
+Yq = height/2.0-(latitude/radians)
 
-lat = np.mod(lat + math.pi, math.pi) - math.pi/2
-lon = np.mod(lon + math.pi, math.pi*2) - math.pi
+output = np.zeros([height,width,3]);
 
-xe = w/2.0 - (-lon/rads)
-ye = h/2.0 - (lat/rads)
+# apply transformation to red green and blue channels separately
+for i in range(0,3):
+    f = interpolate.RectBivariateSpline(x,y,img[:,:,i].T)
+    output[:,:,i]= f(Xq, Yq,grid=False)
 
-outImage = np.zeros([h,w]);
+cv.imshow("Display",output)
 
-#cv.imshow("Display window", bwimg)
-outImage = interpolate.interp2d(xe,ye,bwimg,kind='cubic')
+k = cv.waitKey(0)
 
-
-
-#Keep image up
-#k = cv.waitKey(0)
-
-#if k == ord("s"):
- #   cv.imwrite("sample.jpg", img)
+cv.waitKey(0) # waits until key is pressed
+cv.destroyAllWindows() # destroys window
